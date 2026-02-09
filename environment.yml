@@ -1,0 +1,23 @@
+name: neuralgi-train-cu118
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  # OpenEXR Python bindings on Windows are easiest with Python 3.10 (openexr-python).
+  - python=3.10
+
+  # Core numerical & plotting deps used by dataset/train/eval/exr_compare.
+  - numpy
+  - matplotlib
+  - tqdm
+
+  # PyTorch (GPU build) pinned to CUDA 11.8 runtime
+  - pytorch
+  - pytorch-cuda=11.8
+
+  # EXR IO: provides `OpenEXR` and `Imath` Python modules
+  - openexr-python
+
+  - pip
