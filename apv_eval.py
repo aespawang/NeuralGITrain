@@ -10,6 +10,7 @@ from apv_config import Config
 from model import VoxelMLP
 from dataset import load_and_preprocess_data
 import exr_util
+from model_sin import VoxelMLP_Sine
 
 
 def _safe_norm(idx: int, dim: int) -> float:
@@ -34,7 +35,8 @@ def evaluate_model(config: Config):
     """
     # Step 1: Load Model
     print(f"\nLoading model: {config.model_path}")
-    model = VoxelMLP(config).to(config.device)
+    # model = VoxelMLP(config).to(config.device)
+    model = VoxelMLP_Sine(config).to(config.device)
 
     # Load Weights
     try:
