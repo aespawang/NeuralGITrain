@@ -73,6 +73,7 @@ def make_apv_train_dataset(
     rgb_np = np.asarray(rgb_list, dtype=np.float32)  # (N, 3) RGB (L0)
 
     origin = pos_np.min(axis=0)
+    maxPos = pos_np.max(axis=0)
     # Map positions to integer grid indices using known uniform spacing.
     # Use rint (bankers rounding) to be robust against tiny float errors; then shift to start from 0.
     idx_np = np.rint((pos_np - origin) / spacing).astype(np.int64)
@@ -84,6 +85,7 @@ def make_apv_train_dataset(
 
     total_voxels = int(nx) * int(ny) * int(nz)
     print(f"Origin (min posWS): {origin.tolist()}")
+    print(f"Max posWS: {maxPos.tolist()}")
     print(f"Spacing (minBrickSize/3): {spacing}")
     print(f"Grid dims (Nx, Ny, Nz): {(nx, ny, nz)} | total={total_voxels:,}")
 

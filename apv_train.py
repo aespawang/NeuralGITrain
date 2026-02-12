@@ -74,8 +74,8 @@ def main(config: Config):
         return
 
     # Initialize Model, Criterion, Optimizer
-    # model = VoxelMLP(config).to(config.device)
-    model = VoxelMLP_Sine(config).to(config.device)
+    model = VoxelMLP(config).to(config.device)
+    # model = VoxelMLP_Sine(config).to(config.device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
 
