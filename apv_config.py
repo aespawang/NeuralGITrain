@@ -70,7 +70,7 @@ class Config:
 
         # ===================== Model Settings =====================
         self.input_dim = 3  # XYZ coordinates
-        self.hidden_dims = [64, 64, 64, 64, 64, 64]  # MLP hidden layers
+        self.hidden_dims = [64, 64, 64, 64, 64, 64, 64, 64]  # MLP hidden layers
         self.output_dim = 3  # RGB labels
         self.activation = nn.ReLU()
 

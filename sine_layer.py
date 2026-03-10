@@ -7,7 +7,7 @@ class SineLayer(nn.Module):
     SIREN 的核心层：Linear + Sine 激活 + 特殊初始化
     Paper: Implicit Neural Representations with Periodic Activation Functions
     """
-    def __init__(self, in_features, out_features, bias=True, is_first=False, omega_0=20):
+    def __init__(self, in_features, out_features, bias=True, is_first=False, omega_0=30):
         super().__init__()
         self.omega_0 = omega_0
         self.is_first = is_first

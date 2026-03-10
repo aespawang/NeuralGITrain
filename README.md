@@ -15,7 +15,7 @@ conda activate neuralgi-train-cu118
 conda env update -f environment.yml --prune -y
 ```
 
-1. run `train_dataset_maker.py`
-2. run `train.py`
-3. run `eval.py`
+1. run `apv_train_dataset_maker.py`
+2. run `apv_train.py`
+3. run `apv_eval.py`
 4. run `exr_compare.py`
