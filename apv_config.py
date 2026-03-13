@@ -70,14 +70,15 @@ class Config:
 
         # ===================== Model Settings =====================
         self.input_dim = 3  # XYZ coordinates
-        self.hidden_dims = [64, 64, 64, 64, 64, 64, 64, 64]  # MLP hidden layers
+        self.hidden_dims = [64, 64, 64, 64, 64, 64]  # MLP hidden layers
         self.output_dim = 3  # RGB labels
-        self.activation = nn.ReLU()
+         # self.activation = 'relu'           # Activation function
+        self.activation = 'siren'
 
         # ===================== Training Settings =====================
         self.batch_size = 512
-        self.lr = 1e-3
-        self.epochs = 100
+        self.lr = 1e-4
+        self.epochs = 200
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # ===================== Eval / Export Settings =====================

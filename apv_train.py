@@ -11,7 +11,6 @@ from apv_config import Config
 from model import VoxelMLP
 from dataset import load_and_preprocess_data
 import apv_eval as eval
-from model_sin import VoxelMLP_Sine
 
 
 # ===================== Training & Validation Functions =====================
@@ -75,7 +74,6 @@ def main(config: Config):
 
     # Initialize Model, Criterion, Optimizer
     model = VoxelMLP(config).to(config.device)
-    # model = VoxelMLP_Sine(config).to(config.device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
 
