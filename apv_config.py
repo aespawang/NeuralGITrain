@@ -13,7 +13,7 @@ class Config:
     APV 专用 Config：
     - 从 Unity APV 导出的 JSON（minBrickSize + bricks/probes）推导 volume_dim
     - volume_dim 的计算逻辑与 apv_train_dataset_maker.py 保持一致
-    - checkpoint 输出目录与原版分开（apv_model_checkpoints/）
+    - checkpoint 输出目录与VLM分开（apv_model_checkpoints/）
     """
 
     def __init__(self, json_path: str):
