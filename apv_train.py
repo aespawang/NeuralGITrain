@@ -11,6 +11,7 @@ from apv_config import Config
 from model import VoxelMLP
 from dataset import load_and_preprocess_data
 import apv_eval as eval
+import time
 
 
 # ===================== Training & Validation Functions =====================
@@ -85,6 +86,7 @@ def main(config: Config):
 
     # Start Training
     print("\nStarting Training on FULL Dataset (APV)...")
+    start_time = time.perf_counter()
     for epoch in range(config.epochs):
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, config, epoch)
         train_losses.append(train_loss)
@@ -104,6 +106,14 @@ def main(config: Config):
         # Plot Loss
         if (epoch + 1) % config.plot_freq == 0:
             plot_loss(train_losses, config, epoch)
+
+    end_time = time.perf_counter()
+    total_seconds = end_time - start_time
+
+    hours = int(total_seconds // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+    seconds = total_seconds % 60
+    print(f"训练完成！总共耗时: {hours}小时 {minutes}分钟 {seconds:.2f}秒")
 
     # Training Complete: Save Final Model
     final_model_path = os.path.join(config.save_dir, "mlp_final.pth")
