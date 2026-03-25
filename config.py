@@ -28,10 +28,15 @@ class Config:
         
         # ===================== Model Settings =====================
         self.input_dim = 3                    # XYZ coordinates
-        self.hidden_dims = [64, 64, 64, 64, 64, 64]           # Hidden layer dimensions
+        self.hidden_dims = [32, 32, 32, 32]           # Hidden layer dimensions
         self.output_dim = 3                   # RGB labels
         self.activation = nn.ReLU()           # Activation function
-        
+
+        self.model = "FeatureCubeMLP"
+        self.feature_cube_dim = (32,32,32)
+        self.feature_cube_channels = 4
+        self.pe_frequencies = 3
+
         # ===================== Training Settings =====================
         self.batch_size = 512                 # Batch size
         self.lr = 1e-3                        # Learning rate

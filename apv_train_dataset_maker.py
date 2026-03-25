@@ -172,7 +172,7 @@ def _build_arg_parser(default_json: str, default_out: str) -> argparse.ArgumentP
 
 if __name__ == "__main__":
     current_dir = Path(__file__).resolve().parent
-    default_json = os.path.join(current_dir, "data", "APV_Bricks_L0_SampleScene.json")
+    default_json = os.path.join(current_dir, "data", "APV_Bricks_L0_Probe URP_20260325_185736.json")
     default_out = os.path.join(current_dir, "data")
 
     parser = _build_arg_parser(default_json, default_out)

@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from tqdm import tqdm
 from config import Config
 from model import VoxelMLP
@@ -57,6 +58,8 @@ def evaluate_model(config):
     print(f"\nStarting Inference Evaluation (Device: {config.device})...")
     
     # Step 4: Batch Inference + Loss Calculation
+    observed_gt_max = 0.0
+
     with torch.no_grad():
         pbar = tqdm(enumerate(dataloader), total=len(dataloader))
         for batch_idx, (batch_inputs, batch_labels) in pbar:
@@ -68,6 +71,9 @@ def evaluate_model(config):
             
             # Accumulate Total Loss
             total_l2_loss += batch_l2_loss.item()
+
+            if batch_labels.numel() > 0:
+                observed_gt_max = max(observed_gt_max, float(batch_labels.max().item()))
             
             # Update Progress Bar
             pbar.set_postfix({
@@ -81,12 +87,48 @@ def evaluate_model(config):
     print(f"   Total Samples: {config.total_samples}")
     print(f"   Avg Pixel L2 Loss per Sample: {avg_sample_l2_loss:.4f}")
     
-    # Calculate RMSE
+    # Calculate RMSE and PSNR (auto peak from GT max, override via config.psnr_max_val if provided)
     avg_sample_rmse = np.sqrt(avg_sample_l2_loss)
+    cfg_peak = getattr(config, "psnr_max_val", None)
+    max_val = float(cfg_peak) if cfg_peak is not None else (observed_gt_max if observed_gt_max > 0 else 1.0)
+    psnr = float("inf") if avg_sample_l2_loss <= 0 else 10.0 * np.log10((max_val * max_val) / avg_sample_l2_loss)
     print(f"   Avg Pixel RMSE per Sample: {avg_sample_rmse:.4f}")
+    print(f"   PSNR (peak={max_val}): {psnr:.4f} dB")
+
+    # Prepare GT volume for SSIM (reshape back to [z, y, x, 3])
+    gt_volume_zyx = None
+    try:
+        gt_np = np.load(config.data_path).astype(np.float32)
+        vx, vy, vz = int(config.volume_dim[0]), int(config.volume_dim[1]), int(config.volume_dim[2])
+        expected = vx * vy * vz
+        if gt_np.shape[0] >= expected:
+            gt_labels = gt_np[:expected, 3:]
+            gt_volume_zyx = gt_labels.reshape((vz, vy, vx, 3))
+        else:
+            print(f"Warning: GT data rows ({gt_np.shape[0]}) < expected voxels ({expected}); skip SSIM")
+    except Exception as e:
+        print(f"Warning: failed to load GT for SSIM: {e}")
 
     volume_dim_x, volume_dim_y, volume_dim_z  = config.volume_dim
     pred_data = torch.zeros((volume_dim_z, volume_dim_y, volume_dim_x, 3), dtype=torch.float32)
+    ssim_total = 0.0
+    ssim_count = 0
+
+    def _ssim_slice(pred_yx_np: np.ndarray, gt_yx_np: np.ndarray, peak: float) -> float:
+        # pred_yx_np / gt_yx_np: (y, x, 3) slice at fixed z
+        pred = torch.from_numpy(pred_yx_np).permute(2, 0, 1).unsqueeze(0)  # (1,3,y,x)
+        gt = torch.from_numpy(gt_yx_np).permute(2, 0, 1).unsqueeze(0)
+        C1 = (0.01 * peak) ** 2
+        C2 = (0.03 * peak) ** 2
+        mu_pred = F.avg_pool2d(pred, 3, 1, padding=1)
+        mu_gt = F.avg_pool2d(gt, 3, 1, padding=1)
+        sigma_pred = F.avg_pool2d(pred * pred, 3, 1, padding=1) - mu_pred * mu_pred
+        sigma_gt = F.avg_pool2d(gt * gt, 3, 1, padding=1) - mu_gt * mu_gt
+        sigma_cross = F.avg_pool2d(pred * gt, 3, 1, padding=1) - mu_pred * mu_gt
+        ssim_map = ((2 * mu_pred * mu_gt + C1) * (2 * sigma_cross + C2)) / (
+            (mu_pred * mu_pred + mu_gt * mu_gt + C1) * (sigma_pred + sigma_gt + C2)
+        )
+        return float(ssim_map.mean().item())
     with torch.no_grad():
         with tqdm(total=volume_dim_x * volume_dim_y * volume_dim_z, desc='Generate Pred Data') as pbar:
             for z in range(volume_dim_z):
@@ -108,7 +150,15 @@ def evaluate_model(config):
         filename = f'pred_ambient_slice_{z}.exr'
         path = os.path.join(config.save_dir, 'eval', filename)
         exr_util.write_exr(path, slice_data)
+
+        if gt_volume_zyx is not None:
+            gt_slice = gt_volume_zyx[z]
+            ssim_total += _ssim_slice(slice_data, gt_slice, max_val)
+            ssim_count += 1
     print(f'Saved exr textures')
+
+    if ssim_count > 0:
+        print(f"   SSIM (mean over {ssim_count} Z-slices): {ssim_total / ssim_count:.4f}")
 
 def main(config):
     print("======= Voxel MLP Model Evaluation Script =======")

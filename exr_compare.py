@@ -6,7 +6,7 @@ from matplotlib.widgets import Slider
 import exr_util
 
 class EXRViewer:
-    def __init__(self, dir_a, dir_b, max_idx=31):
+    def __init__(self, dir_a, dir_b, max_idx=256):
         self.dir_a = dir_a
         self.dir_b = dir_b
         self.idx = 0
@@ -102,4 +102,4 @@ if __name__ == "__main__":
     current_dir = Path(__file__).resolve().parent
     folder_A = os.path.join(current_dir, 'data/textures')
     folder_B = os.path.join(current_dir, 'apv_model_checkpoints/eval')
-    viewer = EXRViewer(folder_A, folder_B, max_idx=31)
+    viewer = EXRViewer(folder_A, folder_B, max_idx=163)

@@ -70,15 +70,20 @@ class Config:
 
         # ===================== Model Settings =====================
         self.input_dim = 3  # XYZ coordinates
-        self.hidden_dims = [64, 64, 64, 64, 64, 64]  # MLP hidden layers
+        self.hidden_dims = [32, 32, 32, 32]  # MLP hidden layers
         self.output_dim = 3  # RGB labels
          # self.activation = 'relu'           # Activation function
-        self.activation = 'siren'
+        self.activation = 'relu'
+
+        self.model = "FeatureCubeMLP"
+        self.feature_cube_dim = (32,32,32)
+        self.feature_cube_channels = 4
+        self.pe_frequencies = 3
 
         # ===================== Training Settings =====================
-        self.batch_size = 512
+        self.batch_size = 4096
         self.lr = 1e-4
-        self.epochs = 200
+        self.epochs = 50
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # ===================== Eval / Export Settings =====================
@@ -91,6 +96,6 @@ class Config:
         # ===================== Saving Settings =====================
         self.save_dir = os.path.join(current_dir, "apv_model_checkpoints")
         self.model_path = os.path.join(self.save_dir, "mlp_final.pth")
-        self.save_freq = 100
-        self.plot_freq = 100
+        self.save_freq = 10
+        self.plot_freq = 10
 

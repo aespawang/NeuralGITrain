@@ -6,16 +6,17 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
 
 from apv_config import Config
-from model import VoxelMLP
+from model import get_model
 from dataset import load_and_preprocess_data
 import apv_eval as eval
 import time
 
 
 # ===================== Training & Validation Functions =====================
-def train_one_epoch(model, train_loader, criterion, optimizer, config, epoch):
+def train_one_epoch(model, train_loader, criterion, optimizer, config, epoch, writer=None, global_step=0):
     """Train for one epoch."""
     model.train()  # Set to training mode
     total_loss = 0.0
@@ -33,11 +34,14 @@ def train_one_epoch(model, train_loader, criterion, optimizer, config, epoch):
 
         # Accumulate loss
         total_loss += loss.item() * batch_inputs.size(0)
+        if writer is not None:
+            writer.add_scalar("train/loss", loss.item(), global_step)
+        global_step += 1
         pbar.set_postfix({"loss": f"{loss.item():.6f}"})
 
     # Calculate average loss
     avg_loss = total_loss / len(train_loader.dataset)
-    return avg_loss
+    return avg_loss, global_step
 
 
 # ===================== Visualization =====================
@@ -67,6 +71,8 @@ def main(config: Config):
 
     # Create model save directory
     os.makedirs(config.save_dir, exist_ok=True)
+    tb_log_dir = os.path.join(config.save_dir, "tensorboard")
+    writer = SummaryWriter(log_dir=tb_log_dir)
 
     # Load Data
     train_loader, _, _ = load_and_preprocess_data(config)
@@ -74,7 +80,7 @@ def main(config: Config):
         return
 
     # Initialize Model, Criterion, Optimizer
-    model = VoxelMLP(config).to(config.device)
+    model = get_model(config.model, config).to(config.device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
 
@@ -83,14 +89,19 @@ def main(config: Config):
 
     # Track Losses
     train_losses = []
+    global_step = 0
 
     # Start Training
     print("\nStarting Training on FULL Dataset (APV)...")
     start_time = time.perf_counter()
     for epoch in range(config.epochs):
-        train_loss = train_one_epoch(model, train_loader, criterion, optimizer, config, epoch)
+        train_loss, global_step = train_one_epoch(model, train_loader, criterion, optimizer, config, epoch, writer, global_step)
         train_losses.append(train_loss)
         scheduler.step()
+
+        if writer is not None:
+            writer.add_scalar("train/loss_epoch", train_loss, epoch)
+            writer.add_scalar("train/lr", optimizer.param_groups[0]['lr'], epoch)
 
         # Save Model
         if (epoch + 1) % config.save_freq == 0:
@@ -122,11 +133,12 @@ def main(config: Config):
 
     # Plot Final Loss Curve
     plot_loss(train_losses, config, config.epochs - 1)
+    writer.close()
 
 
 if __name__ == "__main__":
     current_dir = Path(__file__).resolve().parent
-    json_path = os.path.join(current_dir, "data/APV_Bricks_L0_SampleScene.json")
+    json_path = os.path.join(current_dir, "data/APV_Bricks_L0_Probe URP_20260325_185736.json")
     config = Config(json_path)
     main(config)
     # Run evaluation after training
