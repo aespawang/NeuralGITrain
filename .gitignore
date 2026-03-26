@@ -209,3 +209,5 @@ __marimo__/
 data/
 model_checkpoints/
 apv_model_checkpoints/
+
+.vscode/

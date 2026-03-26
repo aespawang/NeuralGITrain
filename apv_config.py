@@ -14,9 +14,11 @@ class Config:
     - 从 Unity APV 导出的 JSON（minBrickSize + bricks/probes）推导 volume_dim
     - volume_dim 的计算逻辑与 apv_train_dataset_maker.py 保持一致
     - checkpoint 输出目录与VLM分开（apv_model_checkpoints/）
+    - cell_index=None 时使用全量数据（data/train.npy）
+    - cell_index=N 时使用单 cell 数据（data/cell_N/train.npy），volume_dim 也只用该 cell 的 probe
     """
 
-    def __init__(self, json_path: str):
+    def __init__(self, json_path: str, cell_index: int = None):
         try:
             with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -34,8 +36,16 @@ class Config:
             raise ValueError(f"Invalid spacing computed from minBrickSize: {min_brick_size}")
 
         # Gather probes (same filter rule as apv_train_dataset_maker.py to keep dims consistent)
+        # When cell_index is given, only use bricks belonging to that cell.
+        self.cell_index = cell_index
+        bricks = data["bricks"]
+        if cell_index is not None:
+            bricks = [b for b in bricks if b.get("cellIndex") == int(cell_index)]
+            if not bricks:
+                raise ValueError(f"No bricks found for cellIndex={cell_index}")
+
         pos_list: List[Tuple[float, float, float]] = []
-        for brick in data["bricks"]:
+        for brick in bricks:
             probes = brick.get("probes", [])
             for probe in probes:
                 pos = probe.get("posWS", None)
@@ -66,7 +76,10 @@ class Config:
         current_dir = Path(__file__).resolve().parent
 
         # ===================== Data Settings =====================
-        self.data_path = os.path.join(current_dir, "data/train.npy")  # Path to training data
+        if cell_index is not None:
+            self.data_path = os.path.join(current_dir, f"data/cell_{cell_index}/train.npy")
+        else:
+            self.data_path = os.path.join(current_dir, "data/train.npy")
 
         # ===================== Model Settings =====================
         self.input_dim = 3  # XYZ coordinates
@@ -89,7 +102,10 @@ class Config:
         self.eval_batch_size = 131072
 
         # ===================== Saving Settings =====================
-        self.save_dir = os.path.join(current_dir, "apv_model_checkpoints")
+        if cell_index is not None:
+            self.save_dir = os.path.join(current_dir, f"apv_model_checkpoints/cell_{cell_index}")
+        else:
+            self.save_dir = os.path.join(current_dir, "apv_model_checkpoints")
         self.model_path = os.path.join(self.save_dir, "mlp_final.pth")
         self.save_freq = 100
         self.plot_freq = 100

@@ -98,8 +98,45 @@ class EXRViewer:
         self.idx = int(val)
         self.update_plot()
 
+
+def _auto_max_idx(folder: str) -> int:
+    """Detect max slice index from ambient_slice_*.exr files in folder."""
+    if not os.path.isdir(folder):
+        return 0
+    indices = []
+    for name in os.listdir(folder):
+        if name.startswith("ambient_slice_") and name.endswith(".exr"):
+            try:
+                indices.append(int(name[len("ambient_slice_"):-len(".exr")]))
+            except ValueError:
+                pass
+    return max(indices) if indices else 0
+
+
 if __name__ == "__main__":
+    import argparse
+
     current_dir = Path(__file__).resolve().parent
-    folder_A = os.path.join(current_dir, 'data/textures')
-    folder_B = os.path.join(current_dir, 'apv_model_checkpoints/eval')
-    viewer = EXRViewer(folder_A, folder_B, max_idx=31)
+
+    parser = argparse.ArgumentParser(description="EXR Ground Truth vs Prediction Viewer")
+    parser.add_argument("--cell", dest="cell_index", type=int, default=None,
+                        help="Cell index to compare (uses data/cell_N/textures and "
+                             "apv_model_checkpoints/cell_N/eval). "
+                             "Omit to use the combined data/textures and apv_model_checkpoints/eval.")
+    parser.add_argument("--max-idx", dest="max_idx", type=int, default=None,
+                        help="Max slice index. Auto-detected from folder_A if not specified.")
+    args = parser.parse_args()
+
+    if args.cell_index is not None:
+        folder_A = os.path.join(current_dir, f"data/cell_{args.cell_index}/textures")
+        folder_B = os.path.join(current_dir, f"apv_model_checkpoints/cell_{args.cell_index}/eval")
+    else:
+        folder_A = os.path.join(current_dir, "data/textures")
+        folder_B = os.path.join(current_dir, "apv_model_checkpoints/eval")
+
+    max_idx = args.max_idx if args.max_idx is not None else _auto_max_idx(folder_A)
+    print(f"Folder A (GT):   {folder_A}")
+    print(f"Folder B (Pred): {folder_B}")
+    print(f"Max slice index: {max_idx}")
+
+    viewer = EXRViewer(folder_A, folder_B, max_idx=max_idx)

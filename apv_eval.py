@@ -149,8 +149,16 @@ def main(config: Config):
 
 
 if __name__ == "__main__":
+    import argparse
     current_dir = Path(__file__).resolve().parent
-    json_path = os.path.join(current_dir, "data/APV_Bricks_L0_SampleScene.json")
-    config = Config(json_path)
+    json_path = os.path.join(current_dir, "data/APV_Bricks_L0_TerminalScene_20260326_220506.json")
+
+    parser = argparse.ArgumentParser(description="Evaluate APV VoxelMLP")
+    parser.add_argument("--cell", dest="cell_index", type=int, default=None,
+                        help="Cell index to evaluate (uses apv_model_checkpoints/cell_N/). "
+                             "Omit to use the combined apv_model_checkpoints/.")
+    args = parser.parse_args()
+
+    config = Config(json_path, cell_index=args.cell_index)
     main(config)
 

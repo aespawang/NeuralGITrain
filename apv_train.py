@@ -125,10 +125,17 @@ def main(config: Config):
 
 
 if __name__ == "__main__":
+    import argparse
     current_dir = Path(__file__).resolve().parent
-    json_path = os.path.join(current_dir, "data/APV_Bricks_L0_SampleScene.json")
-    config = Config(json_path)
+    json_path = os.path.join(current_dir, "data/APV_Bricks_L0_TerminalScene_20260326_220506.json")
+
+    parser = argparse.ArgumentParser(description="Train APV VoxelMLP")
+    parser.add_argument("--cell", dest="cell_index", type=int, default=None,
+                        help="Cell index to train on (uses data/cell_N/train.npy). "
+                             "Omit to train on the combined data/train.npy.")
+    args = parser.parse_args()
+
+    config = Config(json_path, cell_index=args.cell_index)
     main(config)
-    # Run evaluation after training
     eval.main(config)
 
