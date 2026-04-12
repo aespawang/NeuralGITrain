@@ -25,6 +25,17 @@ def _iter_chunks(n: int, chunk_size: int):
         yield start, end
 
 
+def _resolve_eval_data_path(config: Config) -> str:
+    """
+    Prefer eval.npy (base grid) if present so evaluation keeps original ix/iy/iz sampling,
+    even when train.npy is densified for training.
+    """
+    eval_path = getattr(config, "eval_data_path", None)
+    if isinstance(eval_path, str) and eval_path and os.path.exists(eval_path):
+        return eval_path
+    return config.data_path
+
+
 def evaluate_model(config: Config):
     """
     Main Evaluation Logic (APV):
@@ -58,7 +69,8 @@ def evaluate_model(config: Config):
     # Determine which dataloader to use
     dataloader = getattr(config, "dataloader", None)
     if dataloader is None:
-        _, eval_loader, _ = load_and_preprocess_data(config)
+        data_path = _resolve_eval_data_path(config)
+        _, eval_loader, _ = load_and_preprocess_data(config, data_path=data_path)
         dataloader = eval_loader
         config.dataloader = dataloader
 
@@ -139,7 +151,8 @@ def main(config: Config):
     print(f"   Batch Size: {config.batch_size}")
 
     # Load Data (Use Full Dataset)
-    _, eval_loader, _ = load_and_preprocess_data(config)
+    data_path = _resolve_eval_data_path(config)
+    _, eval_loader, _ = load_and_preprocess_data(config, data_path=data_path)
     config.dataloader = eval_loader
     config.total_samples = len(eval_loader.dataset)
 

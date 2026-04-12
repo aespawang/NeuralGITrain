@@ -14,7 +14,7 @@ from model import VoxelMLP
 
 
 MAGIC = b"NGI_MLP\x00"  # 8 bytes
-VERSION = 1
+VERSION = 2
 
 
 def _load_state_dict(pth_path: str, device: torch.device) -> dict:
@@ -37,19 +37,36 @@ def _iter_linear_layers(model: nn.Module):
             yield m
 
 
+def _get_siren_omega0(model: nn.Module) -> float:
+    """Extract omega_0 from the first SirenLayer in the model."""
+    seq = getattr(model, "model", None)
+    if seq is not None:
+        for m in seq.modules():
+            if hasattr(m, "w0"):
+                return float(m.w0)
+    return 30.0
+
+
 def export_mlp_to_bin(pth_path: str, json_path: str, out_path: str) -> Tuple[int, int]:
     """
-    Export VoxelMLP linear weights/biases to a binary file.
+    Export VoxelMLP linear weights/biases to a binary file (v2).
 
     Binary layout (little-endian):
-      - magic: 8 bytes: b'NGI_MLP\\0'
-      - version: uint32
-      - num_layers: uint32
-      - for each layer i:
-          - in_features: uint32
+      ─── header ───
+      - magic:          8 bytes  b'NGI_MLP\\0'
+      - version:        uint32   2
+      ─── metadata ───
+      - omega_0:        float32  SIREN frequency
+      - volume_dim:     3×uint32 [nx, ny, nz]
+      - volume_origin:  3×float32 world-space origin
+      - spacing:        float32  probe spacing
+      ─── layers ───
+      - num_layers:     uint32
+      - for each layer:
+          - in_features:  uint32
           - out_features: uint32
-          - weights: float32[out_features * in_features]  (row-major, same as PyTorch weight (out, in))
-          - bias:    float32[out_features]
+          - weights:      float32[out_features × in_features]  (row-major)
+          - bias:         float32[out_features]
     """
     pth_path = os.path.abspath(pth_path)
     json_path = os.path.abspath(json_path)
@@ -66,15 +83,28 @@ def export_mlp_to_bin(pth_path: str, json_path: str, out_path: str) -> Tuple[int
     if len(layers) == 0:
         raise RuntimeError("No nn.Linear layers found in model.")
 
+    omega_0 = _get_siren_omega0(model)
+    nx, ny, nz = cfg.volume_dim
+    ox, oy, oz = cfg.apv_origin
+    spacing = cfg.apv_spacing
+
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "wb") as f:
+        # header
         f.write(MAGIC)
         f.write(struct.pack("<I", VERSION))
-        f.write(struct.pack("<I", len(layers)))
 
+        # metadata
+        f.write(struct.pack("<f", omega_0))
+        f.write(struct.pack("<III", nx, ny, nz))
+        f.write(struct.pack("<fff", ox, oy, oz))
+        f.write(struct.pack("<f", spacing))
+
+        # layers
+        f.write(struct.pack("<I", len(layers)))
         for layer in layers:
-            w = layer.weight.detach().cpu().numpy().astype(np.float32, copy=False)  # (out, in)
-            b = layer.bias.detach().cpu().numpy().astype(np.float32, copy=False)    # (out,)
+            w = layer.weight.detach().cpu().numpy().astype(np.float32, copy=False)
+            b = layer.bias.detach().cpu().numpy().astype(np.float32, copy=False)
 
             out_features, in_features = w.shape
             f.write(struct.pack("<I", int(in_features)))
@@ -82,29 +112,18 @@ def export_mlp_to_bin(pth_path: str, json_path: str, out_path: str) -> Tuple[int
             f.write(w.tobytes(order="C"))
             f.write(b.tobytes(order="C"))
 
+    print(f"  omega_0     = {omega_0}")
+    print(f"  volume_dim  = ({nx}, {ny}, {nz})")
+    print(f"  origin      = ({ox}, {oy}, {oz})")
+    print(f"  spacing     = {spacing}")
+
     total_params = sum(int(layer.weight.numel() + layer.bias.numel()) for layer in layers)
     return len(layers), total_params
 
 
 def export_mlp_to_json(pth_path: str, json_path: str, out_json_path: str) -> Tuple[int, int]:
     """
-    Export the same ordered structure as the .bin into a JSON file for debugging/comparison.
-
-    JSON layout:
-      {
-        "magic": "NGI_MLP\\u0000",
-        "version": 1,
-        "num_layers": N,
-        "layers": [
-          {
-            "in_features": ...,
-            "out_features": ...,
-            "weight": [[...], ...],   // shape: (out_features, in_features)
-            "bias": [...]
-          },
-          ...
-        ]
-      }
+    Export the same ordered structure as the .bin v2 into a JSON file for debugging/comparison.
     """
     pth_path = os.path.abspath(pth_path)
     json_path = os.path.abspath(json_path)
@@ -121,16 +140,24 @@ def export_mlp_to_json(pth_path: str, json_path: str, out_json_path: str) -> Tup
     if len(layers) == 0:
         raise RuntimeError("No nn.Linear layers found in model.")
 
+    omega_0 = _get_siren_omega0(model)
+    nx, ny, nz = cfg.volume_dim
+    ox, oy, oz = cfg.apv_origin
+
     payload = {
         "magic": MAGIC.decode("latin1"),
         "version": VERSION,
+        "omega_0": omega_0,
+        "volume_dim": [nx, ny, nz],
+        "volume_origin": [ox, oy, oz],
+        "spacing": cfg.apv_spacing,
         "num_layers": len(layers),
         "layers": [],
     }
 
     for layer in layers:
-        w = layer.weight.detach().cpu().numpy().astype(np.float32, copy=False)  # (out, in)
-        b = layer.bias.detach().cpu().numpy().astype(np.float32, copy=False)    # (out,)
+        w = layer.weight.detach().cpu().numpy().astype(np.float32, copy=False)
+        b = layer.bias.detach().cpu().numpy().astype(np.float32, copy=False)
         out_features, in_features = w.shape
         payload["layers"].append(
             {

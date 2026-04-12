@@ -22,12 +22,14 @@ def train_one_epoch(model, train_loader, criterion, optimizer, config, epoch):
     pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{config.epochs} [Train]")
 
     for batch_inputs, batch_labels in pbar:
+        batch_inputs = batch_inputs.to(config.device, non_blocking=True)
+        batch_labels = batch_labels.to(config.device, non_blocking=True)
         # Forward pass
         outputs = model(batch_inputs)
         loss = criterion(outputs, batch_labels)
 
         # Backward pass
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
 

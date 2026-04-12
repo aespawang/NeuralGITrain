@@ -66,7 +66,10 @@ class Config:
         current_dir = Path(__file__).resolve().parent
 
         # ===================== Data Settings =====================
-        self.data_path = os.path.join(current_dir, "data/train.npy")  # Path to training data
+        # 训练默认读取 train.npy（可能是 densify 后的数据集）
+        self.data_path = os.path.join(current_dir, "data/train.npy")
+        # 评估优先读取 eval.npy（保持原始 ix/iy/iz 网格点，不受 densify 影响）
+        self.eval_data_path = os.path.join(current_dir, "data/eval.npy")
 
         # ===================== Model Settings =====================
         self.input_dim = 3  # XYZ coordinates
